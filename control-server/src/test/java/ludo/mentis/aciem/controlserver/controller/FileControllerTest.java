@@ -1,5 +1,6 @@
 package ludo.mentis.aciem.controlserver.controller;
 
+import ludo.mentis.aciem.controlserver.model.FileInfo;
 import ludo.mentis.aciem.controlserver.service.FileService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -61,7 +62,7 @@ class FileControllerTest {
 
         // Assert
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertTrue(response.getBody().contains("File uploaded successfully"));
+        assertTrue(response.getBody() != null && response.getBody().contains("File uploaded successfully"));
         verify(fileService).uploadFile(testFile, testDirectory);
     }
 
@@ -76,7 +77,22 @@ class FileControllerTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertTrue(response.getBody().contains("Failed to upload file"));
+        assertTrue(response.getBody() != null && response.getBody().contains("Failed to upload file"));
+        verify(fileService).uploadFile(testFile, testDirectory);
+    }
+
+    @Test
+    void uploadFile_shouldReturnForbiddenWhenDirectoryIsNotAllowed() throws IOException {
+        // Arrange
+        when(fileService.uploadFile(any(MultipartFile.class), anyString()))
+                .thenThrow(new IOException("Access denied: Path is not within allowed directories"));
+
+        // Act
+        ResponseEntity<String> response = fileController.uploadFile(testFile, testDirectory);
+
+        // Assert
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+        assertTrue(response.getBody() != null && response.getBody().contains("Access denied"));
         verify(fileService).uploadFile(testFile, testDirectory);
     }
 
@@ -115,12 +131,26 @@ class FileControllerTest {
     }
 
     @Test
+    void downloadFile_shouldReturnForbiddenWhenFilePathIsNotAllowed() throws IOException {
+        // Arrange
+        when(fileService.downloadFile(testFilePath))
+                .thenThrow(new IOException("Access denied: Path is not within allowed directories"));
+
+        // Act
+        ResponseEntity<Resource> response = fileController.downloadFile(testFilePath);
+
+        // Assert
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+        verify(fileService).downloadFile(testFilePath);
+    }
+
+    @Test
     void listFiles_shouldReturnListOfFiles() throws IOException {
         // Arrange
-        List<FileService.FileInfo> mockFiles = Arrays.asList(
-                new FileService.FileInfo("file1.txt", false, 100, 1000),
-                new FileService.FileInfo("file2.txt", false, 200, 2000),
-                new FileService.FileInfo("subdir", true, 0, 3000)
+        List<FileInfo> mockFiles = Arrays.asList(
+                new FileInfo("file1.txt", false, 100, 1000),
+                new FileInfo("file2.txt", false, 200, 2000),
+                new FileInfo("subdir", true, 0, 3000)
         );
 
         when(fileService.listFiles(testDirectory)).thenReturn(mockFiles);
@@ -144,7 +174,22 @@ class FileControllerTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertTrue(response.getBody().toString().contains("Failed to list files"));
+        assertTrue(response.getBody() != null && response.getBody().toString().contains("Failed to list files"));
+        verify(fileService).listFiles(testDirectory);
+    }
+
+    @Test
+    void listFiles_shouldReturnForbiddenWhenDirectoryIsNotAllowed() throws IOException {
+        // Arrange
+        when(fileService.listFiles(testDirectory))
+                .thenThrow(new IOException("Access denied: Path is not within allowed directories"));
+
+        // Act
+        ResponseEntity<?> response = fileController.listFiles(testDirectory);
+
+        // Assert
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+        assertTrue(response.getBody() != null && response.getBody().toString().contains("Access denied"));
         verify(fileService).listFiles(testDirectory);
     }
 }
